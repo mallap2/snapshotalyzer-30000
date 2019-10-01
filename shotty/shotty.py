@@ -1,5 +1,5 @@
 import boto3
-#import sys
+import botocore
 import click
 
 session = boto3.Session(profile_name='shotty')
@@ -90,10 +90,16 @@ def create_snapshots(project):
     "Create snapshots for EC2 Instances"
     instances = filter_instances(project)
     for i in instances:
+        #Print("Stopping..{0}".format(i.id))
         i.stop()
+        i.wait_until_stopped()
         for v in i.volumes.all():
             print("Create Snapshot of {0}".format(v.id))
-            v.create_snapshots(Description="Snapshot for SnapshotAlyzer 30000")
+            v.create_snapshot(Description="Snapshot for SnapshotAlyzer 30000")
+        #Print("ReStarting..{0}".format(i.id))
+        i.start()
+        i.wait_until_running()
+    print("Job Done!")
     return
 
 
@@ -105,7 +111,11 @@ def stop_instances(project):
     instances = filter_instances(project)
     for i in instances:
         print("Stopping {0}... ".format(i.id))
-        i.stop()
+        try:
+            i.stop()
+        except botocore.exceptions.ClientError as e:
+            print("Could not stop {0}. ".format(i.id)+str(e))
+            continue
     return
 
 @instances.command('start')
@@ -116,7 +126,11 @@ def start_instances(project):
     instances = filter_instances(project)
     for i in instances:
         print("Starting {0}... ".format(i.id))
-        i.start()
+        try:
+            i.start()
+        except botocore.exceptions.ClientError as e:
+            print("Could not start {0}. ".format(i.id)+str(e))
+            continue
     return
 
 
